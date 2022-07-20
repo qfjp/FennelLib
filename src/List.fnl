@@ -1,33 +1,34 @@
-(local List {})
-(fn List.new [self]
+;; Immutable lists and associated functions
+(local list {})
+(fn list.new [self]
   (setmetatable {:_head nil :_tail nil}
                 {:__index self :__tostring (. self :toStr)}))
 
-(fn List.new [self head]
+(fn list.new [self head]
   (setmetatable {:_head head :_tail nil}
                 {:__index self :__tostring (. self :toStr)}))
 
-(fn List.new [self head tail]
+(fn list.new [self head tail]
   (setmetatable {:_head head :_tail tail}
                 {:__index self :__tostring (. self :toStr)}))
 
-(fn List.push [self item ...]
+(fn list.push [self item ...]
   (if (= nil ...)
       (let [head self._head
             tail self._tail]
-        (List:new item self))
-      (: (List:new item self) :push ...)))
+        (list:new item self))
+      (: (list:new item self) :push ...)))
 
-(fn List.pop [self]
+(fn list.pop [self]
   (self:tail))
 
-(fn List.head [self]
+(fn list.head [self]
   self._head)
 
-(fn List.tail [self]
+(fn list.tail [self]
   self._tail)
 
-(fn List._toStr [self]
+(fn list._toStr [self]
   (let [head self._head
         tail self._tail]
     (if (= head nil) ""
@@ -35,11 +36,11 @@
             (.. "" head)
             (.. "" head ", " (tail:_toStr))))))
 
-(fn List.toStr [self]
-  (.. "[" (List._toStr self) "]"))
+(fn list.toStr [self]
+  (.. "[" (list._toStr self) "]"))
 
-(fn List.print [self]
+(fn list.print [self]
   (print (self:toStr)))
 
-List
+list
 
