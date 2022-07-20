@@ -168,7 +168,6 @@
                                           (lua "return false")))
                                       true)))
                         :__le (fn [self other]
-                                (local t (unwrap self))
                                 ;; equality is compare-by-reference
                                 ;; (tuples are interned & immutable)
                                 (if (= self other) true (< self other)))
