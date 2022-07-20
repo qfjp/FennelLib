@@ -25,6 +25,7 @@
 (local bit32 (require :bit32))
 
 (let [ver-num (tonumber (string.match _VERSION "[0-9]+%.[0-9]+"))]
+  ;; The following hack is needed to allow unpack over tuples
   (when (< ver-num 5.3)
     (local table (require :table))
 
@@ -37,6 +38,7 @@
     (set table.unpack table-unpack)
     (global unpack table-unpack)))
 
+;; Libraries
 (local assert assert)
 (local getmetatable getmetatable)
 (local ipairs ipairs)
@@ -56,6 +58,7 @@
 (local table-concat table.concat)
 (local table-pack table.pack)
 
+;; Constants
 (local MAX_BYTES 4)
 (local BYTE_MASK 255)
 (local WORD_MASK 4294967295)
@@ -64,21 +67,28 @@
 (local NUM_BUCKETS (^ 2 18))
 (local WEAK_MT {:__mode :v})
 
+;; The list of tuples is a hash table with a max of NUM_BUCKETS
 (local list-of-tuples {})
 
+;; A table with metadata of tuples, indexed by tuple reference
 (local tuples-metadata (setmetatable {} {:__mode :k}))
 
 (fn char-iterator [data j]
+  ;; A function to convert a string to a byte-string, when used
+  ;; as a lua iterator
   (let [j (+ j 1)]
     (when (< j (length data))
       (values j (string.byte (data:sub j j))))))
 
 (fn number-iterator [data j]
+  ;; A function to convert a number to a base 2^8 string, when used
+  ;; as a lua iterator
   (when (< j MAX_BYTES)
     (let [v (bit32-band (bit32-rshift data (* j 8)) BYTE_MASK)]
       (values (+ j 1) v))))
 
 (var compute-hash nil)
+;; forward decl
 
 (fn bytes [data]
   "Splits `data` into iterable (8-bit) bytes"
@@ -107,9 +117,11 @@
                           h2 (bit32-bxor h1 (bit32-lshift h1 11))
                           h3 (+ h2 (bit32-lshift h2 15))]
                       (bit32-band h3 WORD_MASK))))
+                   ;; modulo 2^32
 
 (local tuple-instance-mt
        {:__metatable false
+        ;; concats two tuples or a tuple with a (num/string/table)
         :__concat (fn [aArg bArg]
                     (local (a b)
                            (if (not= (type aArg) :table)
@@ -123,8 +135,11 @@
                           (tset aux (+ (length aux) 1) (. b i)))
                         (tset aux (+ (length aux) 1) b))
                     (tuple aux))
+        ;; disallow inserting new elements
         :__newindex (fn [self]
                       (error "Unable to modify a tuple"))})
+
+;; Tuple metadata functions
 
 (fn unwrap [self]
   (. (. tuples-metadata self) 1))
