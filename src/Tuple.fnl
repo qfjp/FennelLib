@@ -125,7 +125,8 @@
                    (bit32-band h3 WORD_MASK))))
 
 (local tuple-instance-mt
-       {:__metatable false
+       {:__metatable ; disallow changing metatable
+        false
         ;; concats two tuples or a tuple with a (num/string/table)
         :__concat (fn [aArg bArg]
                     (local (a b)
@@ -168,6 +169,8 @@
                                       true)))
                         :__le (fn [self other]
                                 (local t (unwrap self))
+                                ;; equality is compare-by-reference
+                                ;; (tuples are interned & immutable)
                                 (if (= self other) true (< self other)))
                         :__concat (fn [self other]
                                     (.. (unwrap self) other))
@@ -205,20 +208,27 @@
                                  (len self))})
 
 (fn proxy [tpl n]
+  "Returns a wrapper proxy table which shades the data table, providing immutability.
+  Takes the tuple and the number of elements"
   (setmetatable tpl tuple-instance-mt)
   (local ref (setmetatable {} proxy-metatable))
+  ;; The proxy table has an immutable metatable, and stores the real
+  ;; tuple data and the number of elements in tuples-metadata.
   (tset tuples-metadata ref [tpl n])
   ref)
 
 (fn tuple-constructor [t]
+  "Builds a candidate tuple given a table, recursively converting tables to tuples."
   (let [n (or t.n (length t))
         new-tuple {}]
     (for [i 1 n]
       (local v (. t i))
       (assert (and (= (type i) :number) (> i 0)) "Needs integer keys > 0")
       (if (= (type v) :table) (tset new-tuple i (tuple v)) (tset new-tuple i v)))
+    ;; Returns a proxy to the new tuple with length of #t
     (proxy new-tuple n)))
 
+; Metatable defining tuple class
 (local tuple-mt {:__call (fn [self ...]
                            (local n (select "#" ...))
                            (var t (table-pack ...))
