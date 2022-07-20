@@ -229,50 +229,73 @@
 
 ; Metatable defining tuple class
 (local tuple-mt {:__call (fn [self ...]
-                           (local n (select "#" ...))
-                           (var t (table-pack ...))
-                           (assert (= (length t) n))
-                           (when (= (length t) 1)
-                             (set t (. t 1)))
-                           (if (not= (type t) :table) t
-                               (do
-                                 (local mt (getmetatable t))
-                                 (if (= mt :is_tuple)
-                                     t)
+                           ;; constructor doesn't allow table loops
+                           (let [n (select "#" ...)
+                                 packed (table-pack ...)
+                                 t (if (not= (length packed) 1) packed
+                                       (. packed 1))
+                                 mt (getmetatable t)]
+                             (assert (= (length packed) n))
+                             ;; non-table elements are unpacked if only one is given
+                             (if (not= (type t) :table) t
+                                 ;; If the given table is a tuple,
+                                 ;; return it
                                  (do
-                                   (local new-tuple (tuple-constructor t))
-                                   (local h (compute-hash new-tuple))
-                                   (local p (% h NUM_BUCKETS))
-                                   (var bucket
-                                        (or (. list-of-tuples p)
-                                            (setmetatable {} WEAK_MT)))
-                                   (tset list-of-tuples p bucket)
-                                   (var (max n) (values 0 0))
-                                   (each [i vi (pairs bucket)]
-                                     (var equals true)
-                                     (if (= (length vi) (length new-tuple))
-                                         (for [j 1 (length vi)]
-                                           (local vj (. vi j))
-                                           (when (not= vj (. new-tuple j))
-                                             (set equals false)
-                                             (lua :break)))
-                                         (set equals false))
-                                     (when (= equals true)
-                                       (lua "return vi"))
-                                     (set max (math-max max i))
-                                     (set n (+ n 1)))
-                                   (when (> (/ max n) MAX_BUCKET_HOLES_RATIO)
-                                     (local new-bucket {})
-                                     (each [i vi (pairs bucket)]
-                                       (tset new-bucket
-                                             (+ (length new-bucket) 1) vi))
-                                     (tset list-of-tuples p new-bucket)
-                                     (set bucket new-bucket)
-                                     (set max (length bucket))
-                                     (collectgarbage :collect))
-                                   (tset bucket (+ max 1) new-tuple)
-                                   (tset (. tuples-metadata new-tuple) 3 h)
-                                   new-tuple))))})
+                                   (if (= mt :is_tuple) t
+                                       ;; Otherwise, create a new tuple
+                                       ;; candidate.
+                                       (let [new-tuple (tuple-constructor t)
+                                             h (compute-hash new-tuple)
+                                             p (% h NUM_BUCKETS)
+                                             bucket [(or (. list-of-tuples p)
+                                                         (setmetatable {}
+                                                                       WEAK_MT))]
+                                             (max n) (values [0] [0])]
+                                         (tset list-of-tuples p (. bucket 1))
+                                         ;; Count the number of elements
+                                         ;; in the bucket and the max
+                                         ;; non-nil key. If the ratio
+                                         ;; between these is greater than
+                                         ;; MAX_BUCKET_HOLES_RATIO, remove
+                                         ;; all nil holes.
+                                         (each [i vi (pairs (. bucket 1))]
+                                           ;; check pairwise equality
+                                           (if (let [break [false]]
+                                                 (if (= (length vi)
+                                                        (length new-tuple))
+                                                     (for [j 1 (length vi) :until (. break
+                                                                                     1)]
+                                                       (local vj (. vi j))
+                                                       (when (not= vj
+                                                                   (. new-tuple
+                                                                      j))
+                                                         (tset break 1 true)))
+                                                     false)
+                                                 (not (. break 1)))
+                                               ;; break if the tuple
+                                               ;; exists in the bucket
+                                               (lua "return vi")
+                                               (do
+                                                 (tset max 1
+                                                       (math-max (. max 1) i))
+                                                 (tset n 1 (+ (. n 1) 1)))))
+                                         ;; Remove non-nil holes, if the
+                                         ;; ratio condition is met.
+                                         (when (> (/ (. max 1) (. n 1))
+                                                  MAX_BUCKET_HOLES_RATIO)
+                                           (local new-bucket {})
+                                           (each [i vi (pairs (. bucket 1))]
+                                             (tset new-bucket
+                                                   (+ (length new-bucket) 1) vi))
+                                           (tset list-of-tuples p new-bucket)
+                                           (tset bucket 1 new-bucket)
+                                           (tset max 1 (length (. bucket 1)))
+                                           (collectgarbage :collect))
+                                         (tset (. bucket 1) (+ (. max 1) 1)
+                                               new-tuple)
+                                         (tset (. tuples-metadata new-tuple) 3
+                                               h)
+                                         new-tuple))))))})
 
 (setmetatable tuple tuple-mt)
 
