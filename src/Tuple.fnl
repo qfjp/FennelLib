@@ -89,8 +89,8 @@
     (let [v (bit32-band (bit32-rshift data (* j 8)) BYTE_MASK)]
       (values (+ j 1) v))))
 
-(var compute-hash nil)
 ;; forward decl
+(local compute-hash nil)
 
 (fn bytes [data]
   "Splits `data` into iterable (8-bit) bytes"
@@ -104,22 +104,25 @@
                           "Needs an array with numbers, tables or strings")]
           (bytes str)))))
 
-(set compute-hash (fn [t]
-                    (local htab [0])
-                    (for [i 1 (length t)]
-                      (each [j c (bytes (. t i))]
-                        (let [index (+ j (* MAX_BYTES (- i 1)))
-                              h1 (+ (. htab index) c)
-                              h2 (+ h1 (bit32-lshift h1 10))
-                              h3 (bit32-bxor h2 (bit32-rshift h2 6))
-                              h4 (bit32-band h3 WORD_MASK)]
-                          (tset htab (+ index 1) h4))))
-                    (let [h (. htab (length htab))
-                          h1 (+ h (bit32-rshift h 3))
-                          h2 (bit32-bxor h1 (bit32-lshift h1 11))
-                          h3 (+ h2 (bit32-lshift h2 15))]
-                      (bit32-band h3 WORD_MASK))))
+(set-forcibly! compute-hash
+               (fn [t]
+                 "Computes hash for a tuple candidate"
+                 (local htab [0])
+                 (for [i 1 (length t)]
+                   (each [j c (bytes (. t i))] ; compute hash for every byte in v
+                     (let [index (+ j (* MAX_BYTES (- i 1)))
+                           h1 (+ (. htab index) c)
+                           h2 (+ h1 (bit32-lshift h1 10))
+                           h3 (bit32-bxor h2 (bit32-rshift h2 6))
+                           ;; modulo 2^32
+                           h4 (bit32-band h3 WORD_MASK)]
+                       (tset htab (+ index 1) h4))))
+                 (let [h (. htab (length htab))
+                       h1 (+ h (bit32-rshift h 3))
+                       h2 (bit32-bxor h1 (bit32-lshift h1 11))
+                       h3 (+ h2 (bit32-lshift h2 15))]
                    ;; modulo 2^32
+                   (bit32-band h3 WORD_MASK))))
 
 (local tuple-instance-mt
        {:__metatable false
