@@ -72,6 +72,13 @@
 ;; The list of tuples is a hash table with a max of NUM_BUCKETS
 (local list-of-tuples {})
 
+(fn show-tuples []
+  (each [hash tuple (pairs list-of-tuples)]
+    (print hash)
+    (each [_ v (pairs tuple)]
+      (print (string-format "    %s" v)))
+    (print)))
+
 ;; A table with metadata of tuples, indexed by tuple reference
 (local tuples-metadata (setmetatable {} {:__mode :k}))
 
@@ -299,11 +306,26 @@
 
 (setmetatable tuple tuple-mt)
 
+(fn count-meta []
+  (var items 0)
+  (each [k v (pairs tuples-metadata)]
+    (set items (+ 1 items)))
+  items)
+
 (fn tuple.utest []
   (var a (tuple 2 [4 5] :a))
+  (assert (= 2 (count-meta)))
   (var b (tuple 4 5))
+  (assert (= 3 (count-meta)))
   (var c (tuple 2 (. a 2) :a))
+  (assert (= 4 (count-meta)))
   (var d (tuple 3 4))
+  (assert (= 5 (count-meta)))
+  (var e (tuple 1 2 5 4 5 6))
+  (assert (= 6 (count-meta)))
+  (var f (tuple 2 3 4 5 6 7))
+  (assert (= 7 (count-meta)))
+  (show-tuples)
   (assert (= a c))
   (assert (= b (. a 2)))
   (assert (= b (. c 2)))
@@ -315,7 +337,8 @@
   (assert (= (compute-hash a) 1275614854))
   (assert (= (compute-hash b) 2765647374))
   (assert (= (compute-hash (tuple 1 2)) 897644836))
-  (set (a b c d) (values nil nil nil nil))
+  (assert (not (< e f)))
+  (set (a b c d e f) (values nil nil nil nil nil nil))
   (collectgarbage :collect)
   (var aux {})
   (for [i 1 10000]
