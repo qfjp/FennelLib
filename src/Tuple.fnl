@@ -60,9 +60,11 @@
 
 ;; Constants
 (local MAX_BYTES 4)
-(local BYTE_MASK 255)
-(local WORD_MASK 4294967295)
-(local MAX_NUMBER (^ 2 32))
+(local BYTE_SIZE 8)
+(local WORD_SIZE (* MAX_BYTES BYTE_SIZE))
+(local BYTE_MASK (- (^ 2 BYTE_SIZE) 1))
+(local WORD_MASK (- (^ 2 WORD_SIZE) 1))
+(local MAX_NUMBER (^ 2 WORD_SIZE))
 (local MAX_BUCKET_HOLES_RATIO 100)
 (local NUM_BUCKETS (^ 2 18))
 (local WEAK_MT {:__mode :v})
