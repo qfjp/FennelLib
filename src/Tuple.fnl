@@ -162,11 +162,11 @@
                                     (< (length t) (length other)) true
                                     (> (length t) (length other)) false
                                     (= t other) false
-                                    (do
-                                      (for [i 1 (length t)]
+                                    (let [break [false]]
+                                      (for [i 1 (length t) :until (. break 1)]
                                         (when (> (. t i) (. other i))
-                                          (lua "return false")))
-                                      true)))
+                                          (tset break 1 true)))
+                                      (not (. break 1)))))
                         :__le (fn [self other]
                                 ;; equality is compare-by-reference
                                 ;; (tuples are interned & immutable)
